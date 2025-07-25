@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+
+    environment {
+        COMPOSE_PROJECT_NAME = "voting_app"
+    }
+
+    stages {
+        stage('Clone repo') {
+            steps {
+                git 'https://github.com/sats0264/voting_app.git'
+            }
+        }
+
+        stage('Build Docker images') {
+            steps {
+                sh 'docker compose build --no-cache'
+            }
+        }
+
+        stage('Start containers') {
+            steps {
+                sh 'docker compose up -d'
+            }
+        }
+
+        stage('Check container health') {
+            steps {
+                script {
+                    def result = sh(script: "docker inspect --format='{{.State.Health.Status}}' voting_app-redis-1", returnStdout: true).trim()
+                    if (result != 'healthy') {
+                        error "Redis container not healthy"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline terminé (succès ou échec)"
+        }
+    }
+}
