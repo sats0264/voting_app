@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Clone repo') {
             steps {
-                git 'https://github.com/sats0264/voting_app.git'
+                git url: 'https://github.com/sats0264/voting_app.git', branch: 'main'
             }
         }
 
@@ -18,18 +18,19 @@ pipeline {
             }
         }
 
-        stage('Start containers') {
+        stage('Deploy containers') {
             steps {
+                sh 'docker compose down -v || true'
                 sh 'docker compose up -d'
             }
         }
 
-        stage('Check container health') {
+        stage('Check health (Redis)') {
             steps {
                 script {
-                    def result = sh(script: "docker inspect --format='{{.State.Health.Status}}' voting_app-redis-1", returnStdout: true).trim()
-                    if (result != 'healthy') {
-                        error "Redis container not healthy"
+                    def redisStatus = sh(script: "docker inspect --format='{{.State.Health.Status}}' voting_app-redis-1", returnStdout: true).trim()
+                    if (redisStatus != 'healthy') {
+                        error "Redis container not healthy: ${redisStatus}"
                     }
                 }
             }
@@ -38,7 +39,8 @@ pipeline {
 
     post {
         always {
-            echo "Pipeline terminé (succès ou échec)"
+            echo "État final des conteneurs :"
+            sh 'docker compose ps'
         }
     }
 }
